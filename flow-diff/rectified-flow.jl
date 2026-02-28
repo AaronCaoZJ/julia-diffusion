@@ -7,7 +7,7 @@ using Flux, Zygote, CUDA, cuDNN, OrdinaryDiffEq, Random, Statistics, CairoMakie,
 # Sampling: ODE dx/dt = v_θ(x,t), integrated from t=1 (noise) to t=0 (data)
 
 const DEVICE      = CUDA.functional() ? gpu : cpu
-const SAVE_DIR    = "output"
+const SAVE_DIR    = "output/flow-out"
 const N_STEPS     = 100
 const T_EMBED_DIM = 32
 const DATA_LIMS   = ((-3.0f0, 3.0f0), (-3.0f0, 3.0f0))

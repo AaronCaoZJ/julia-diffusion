@@ -14,7 +14,7 @@ using Flux, Zygote, CUDA, cuDNN, Random, Statistics, CairoMakie, Printf
 
 const DEVICE      = CUDA.functional() ? gpu : cpu
 const SEED        = 42
-const SAVE_DIR    = "output"
+const SAVE_DIR    = "output/sde-out"
 const T_EMBED_DIM = 32
 const FREQS       = (2f0 .^ Float32.(0:T_EMBED_DIM÷2-1)) |> DEVICE
 const σ_BRIDGE    = 0.387f0

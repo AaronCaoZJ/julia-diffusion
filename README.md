@@ -6,24 +6,67 @@ All scripts support CUDA GPU acceleration and fall back to CPU automatically.
 > Blog: https://diffusion.kowyo.workers.dev/posts/ddpms-to-continus-time-diffusions/
 
 
+## Quick Start
+
+### Dependencies
+
+```julia
+using Pkg
+Pkg.add([
+    "Flux", "Zygote", "CUDA", "cuDNN",
+    "OrdinaryDiffEq",
+    "CairoMakie", "Statistics", "Printf", "Random"
+])
+```
+
+For the MNIST script, additional packages are installed automatically on first run:
+`MLDatasets`, `ProgressMeter`, `JSON`, `BSON`, `Plots`, `GR`.
+
+### Run
+
+```bash
+# DDPM (Two Moons)
+julia naive-diff.jl
+
+# VP-SDE score diffusion (Cat)
+julia sde-diff/sde.jl
+
+# Brownian Bridge Flow Matching (Cat)
+julia sde-diff/brown-sde.jl
+
+# Rectified Flow + sampler benchmark (Cat)
+julia flow-diff/rectified-flow.jl
+
+# Conditional Rectified Flow + CFG (MNIST, requires CUDA)
+julia flow-diff/train_mnist_cfg_rectifiedflow_cuda.jl
+```
+
+Output images are saved to `output/` at the project root.
+MNIST outputs (samples, model checkpoints, training history) are saved to
+`outputs/MNIST_CFG_RF_CUDA_<timestamp>/`.
+
+
 ## Project Structure
 
 ```
 julia-diffusion/
-├── navie-diff/
-│   └── diffusion.jl                       # DDPM (discrete VP-diffusion, Two Moons)
+├── naive-diff.jl                         # DDPM (discrete VP-diffusion, Two Moons)
 ├── sde-diff/
-│   ├── sde.jl                             # VP-SDE (continuous score diffusion, Cat)
-│   └── brown-sde.jl                       # Brownian Bridge Flow Matching (Cat)
+│   ├── sde.jl                            # VP-SDE (continuous score diffusion, Cat)
+│   └── brown-sde.jl                      # Brownian Bridge Flow Matching (Cat)
 ├── flow-diff/
-│   └── rectified-flow.jl                  # Rectified Flow + sampler benchmark (Cat)
-└── train_mnist_cfg_rectifiedflow_cuda.jl  # Conditional Rectified Flow + CFG (MNIST)
+│   ├── rectified-flow.jl                 # Rectified Flow + sampler benchmark (Cat)
+│   └── train_mnist_cfg_rectifiedflow.jl  # Conditional Rectified Flow + CFG (MNIST)
+└── output/
+    ├── naive-out/
+    ├── sde-out/
+    └── flow-out/
 ```
 
 
 ## Models
 
-### 1. DDPM — `navie-diff/diffusion.jl`
+### 1. DDPM — `naive-diff.jl`
 
 Discrete-time denoising diffusion probabilistic model (Ho et al. 2020), trained on a 2D Two Moons dataset.
 
@@ -51,7 +94,7 @@ Variance Preserving SDE, continuous-time score-based generative model (Song et a
 - **Reverse SDE** (Euler-Maruyama, t: 1 → 0):
   `Δx = [β/2·x + β·s_θ]·Δt + √(β·Δt)·z`,  z ~ N(0, I)
 
-![VP-SDE result](sde-diff/output/sde_cat.png)
+![VP-SDE result](output/sde-out/sde_cat.png)
 
 
 ### 3. Brownian Bridge Flow Matching — `sde-diff/brown-sde.jl`
@@ -74,7 +117,7 @@ mapping X₁ ~ U([2, 3]²) (noise, disjoint from data) to X₀ (Cat outline).
   `x_{t2} = (t1−t2)/t1 · x̂_0 + t2/t1 · x_{t1} + σ·√(t2(t1−t2)/t1)·ε`
   Noise magnitude shrinks as t2 → 0, locking onto the predicted data point deterministically.
 
-![Brownian Bridge result](sde-diff/output/brown_cat.png)
+![Brownian Bridge result](output/sde-out/brown_cat.png)
 
 
 ### 4. Rectified Flow — `flow-diff/rectified-flow.jl`
@@ -93,7 +136,7 @@ Because the path is a linear interpolation, the velocity field is constant and r
 - **Datasets**: `make_cat` / `make_rings` / `make_moons` / `make_checkerboard` — set via `DATA_FN`
 - **Metrics**: Chamfer Distance (CD ↓) and MMD² with RBF kernel (σ = 0.5)
 
-![Rectified Flow result](flow-diff/output/ode_cat.png)
+![Rectified Flow result](output/flow-out/ode_cat.png)
 
 #### Sampler Benchmark
 
@@ -107,17 +150,12 @@ All samplers use the same trained model; only the integrator changes.
 | Tsit5 fixed | fixed (adaptive=false) | ~4th | ~6 | high-order reference |
 | Tsit5 adaptive | adaptive | ~5th | tol-dependent | error-controlled; fewest NFE at loose tolerance |
 
-Results — Euler:
-![Euler sampler](flow-diff/output/cat_euler.png)
-
-Results — Heun:
-![Heun sampler](flow-diff/output/cat_heun.png)
-
-Results — Tsit5 fixed-step:
-![Tsit5 fixed](flow-diff/output/cat_tsit5_fixed.png)
-
-Results — Tsit5 adaptive:
-![Tsit5 adaptive](flow-diff/output/cat_tsit5_adap.png)
+| Sampler | Result |
+|---|---|
+| Euler | ![](output/flow-out/cat_euler.png) |
+| Heun | ![](output/flow-out/cat_heun.png) |
+| Tsit5 fixed | ![](output/flow-out/cat_tsit5_fixed.png) |
+| Tsit5 adaptive | ![](output/flow-out/cat_tsit5_adap.png) |
 
 
 ### 5. Conditional Rectified Flow + CFG — `train_mnist_cfg_rectifiedflow_cuda.jl`
@@ -147,43 +185,3 @@ Class-conditional generation on MNIST using Rectified Flow with Classifier-Free 
 | Brownian Bridge | stochastic bridge | U([2,3]²) | exact bridge steps, t: 1→0 | Cat outline |
 | Rectified Flow | deterministic ODE | U([2,3]²) | Euler / Heun / Tsit5, t: 1→0 | Cat / rings / moons / checkerboard |
 | CFG Rectified Flow | deterministic ODE (conditional) | N(0, I) | Euler, t: 1→0 | MNIST |
-
-
-## Usage
-
-### Dependencies
-
-```julia
-using Pkg
-Pkg.add([
-    "Flux", "Zygote", "CUDA", "cuDNN",
-    "OrdinaryDiffEq",
-    "CairoMakie", "Statistics", "Printf", "Random"
-])
-```
-
-For the MNIST script, additional packages are installed automatically on first run:
-`MLDatasets`, `ProgressMeter`, `JSON`, `BSON`, `Plots`, `GR`.
-
-### Run
-
-```bash
-# DDPM (Two Moons)
-julia navie-diff/diffusion.jl
-
-# VP-SDE score diffusion (Cat)
-julia sde-diff/sde.jl
-
-# Brownian Bridge Flow Matching (Cat)
-julia sde-diff/brown-sde.jl
-
-# Rectified Flow + sampler benchmark (Cat)
-julia flow-diff/rectified-flow.jl
-
-# Conditional Rectified Flow + CFG (MNIST, requires CUDA)
-julia train_mnist_cfg_rectifiedflow_cuda.jl
-```
-
-Output images are saved to `output/` inside each subdirectory.
-MNIST outputs (samples + model checkpoints + training history) are saved to
-`outputs/MNIST_CFG_RF_CUDA_<timestamp>/`.

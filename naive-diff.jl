@@ -4,7 +4,7 @@ using Flux, Zygote, CUDA, cuDNN, Random, Statistics, CairoMakie, Printf
 # q(x_t|x_0) = N(sqrt(ᾱ_t)·x_0, (1-ᾱ_t)·I),  reverse: predict ε
 
 const DEVICE     = CUDA.functional() ? gpu : cpu
-const SAVE_DIR   = "output"
+const SAVE_DIR   = "output/navie-out"
 const T          = 1000
 const BETA_START = 1e-4
 const BETA_END   = 0.02
